@@ -1,0 +1,423 @@
+---
+title: 'STA 380 Homework 2'
+author: 'Emily Graves and Hillary Regan'
+date: 'August 16, 2016'
+output: html_document
+---
+```{r include =FALSE}
+library(arules)
+library(stats)
+library(ggplot2)
+library(arulesViz)
+```
+
+# Flights at ABIA
+## Assignment:
+
+Tell an interesting story about flights into and out of Austin. 
+
+## Solution: 
+
+```{r echo=FALSE}
+#read in data file
+fly_data = read.csv('C:/Users/hilla/Desktop/R Dir/Stats part 2/ABIA.csv')
+attach(fly_data)
+#colnames(fly_data)
+```
+
+```{r echo=FALSE, warning=FALSE}
+#arrival delay by departure delay
+p1 = ggplot(aes(x=DepDelay,y=ArrDelay), data=fly_data)
+p1 + geom_point() + geom_abline(color='blue') + labs(x="Departure Delay (minutes)", y="Arrival Delay (minutes)") + ggtitle("Which Delays to Focus On?")
+```
+
+To determine which delay variable to focus on, the relationship between departure delays and arrival delays was plotted. The result shows that while there is essentially a 1 to 1 relationship, Arrival Delays have a tendency to be average on higher. Additionally, Arrival Delays have greater influence of flying experience, so Arrival Delays were used in the analysis. 
+<br>
+<br>
+<br>
+<br>
+```{r echo=FALSE, warning = FALSE}
+#arrival delay by day of month
+p2 = ggplot(aes(x=DayofMonth, y=ArrDelay), data=fly_data)
+p2 + geom_point() +  stat_summary(fun.y="mean", geom='line', color='blue') + labs(x="Day of Month", y="Arrival Delay (minutes)") + ggtitle("What is the Best Day to Fly?")
+
+#arrival delay by day of month
+p22 = ggplot(aes(x=DayOfWeek, y=ArrDelay), data=fly_data)
+p22 + geom_point() +  stat_summary(fun.y="mean", geom='line', color='blue') + labs(x="Day of Week", y="Arrival Delay (minutes)") + ggtitle("What is the Best Day to Fly?")
+```
+
+To analyze the best day to fly, arrival delay was plotted against day of the month and day of the week. While there is broad range of delays, the average remains relatively stable around zero minutes for both plots. Tuesday and Saturday tend to have slightly higher delays, with drastic outliers. 
+<br>
+<br>
+<br>
+<br>
+```{r echo=FALSE, warning=FALSE}
+#arrival delay by departure time
+p3 = ggplot(aes(x=DepTime, y=ArrDelay), data = fly_data)
+p3 + geom_point() + labs(x="Departure Time (military time)", y="Arrival Delay (minutes)") + ggtitle("What is the Best Time of Day to Fly?")
+```
+
+Next, the best time of day to fly was researched. Departure time was plotted against Arrival Delay, and a "fanning" effect was noticed as the day went on. This corresponds to previous beliefs that if flights in the morning are delayed, it will create a domino effect on later flights. If hoping to avoid delays, the best time to schedule a flight is between 5 and 8 am. 
+<br>
+<br>
+<br>
+<br>
+```{r echo = FALSE, warning=FALSE}
+p4 = ggplot(aes(x=Dest, y=ArrDelay), data = fly_data)
+p4 + stat_summary(fun.y="mean", geom='bar') + theme(axis.text.x = element_text(angle = 90, hjust = 1)) + labs(x="Destination", y="Average Arrival Delay (minutes)") + ggtitle("What are the Best and Worst Airports to Fly Into?")
+
+#DSM bad
+#FLL, IND, PHL, SLC, TUL good
+```
+
+Finally, what are the best and worst airports to fly into? Using the average arrival delay for each destination, it can clearly be seen that Des Moines, Iowa (DSM) is the airport with the highest average delays. In contrast, flights going into Fort Lauderdale, Florida (FLL), Indianapolis, Indiana (IND), Philadelphia, Pennsylvania (PHL), Salt Lake City, Utah (SLC), and Tulsa, Oklahoma (TUL), on average, arrive ahead of schedule - therefore being considered the best airports to fly into based off of this criteria. 
+<br>
+<br>
+<br>
+<br>
+```{r include =FALSE}
+library(dichromat)
+library(XML)
+library(tm)
+```
+
+
+# Author Attribution
+# Assignment:
+
+Build two separate models (using any combination of tools) to predicting the author of an article on the basis of that article's textual content. 
+
+# Solution:
+```{r echo =FALSE, include=FALSE}
+#load data
+source('C:/Users/hilla/Desktop/R Dir/Stats part 2/textutils.R')
+
+readerPlain = function(fname){
+				readPlain(elem=list(content=readLines(fname)), 
+							id=fname, language='en') }
+
+author_dirs = Sys.glob('C:/Users/hilla/Desktop/R Dir/Stats part 2/ReutersC50/C50train/*')
+#author_dirs = author_dirs[1:2]
+file_list = NULL
+labels = NULL
+for(author in author_dirs) {
+	author_name = substring(author, first=29)
+	files_to_add = Sys.glob(paste0(author, '/*.txt'))
+	file_list = append(file_list, files_to_add)
+	labels = append(labels, rep(author_name, length(files_to_add)))
+}
+
+# Need a more clever regex to get better names here
+all_docs = lapply(file_list, readerPlain) 
+names(all_docs) = file_list
+names(all_docs) = sub('.txt', '', names(all_docs))
+
+my_corpus = Corpus(VectorSource(all_docs))
+names(my_corpus) = file_list
+
+# Preprocessing
+my_corpus = tm_map(my_corpus, content_transformer(tolower)) # make everything lowercase
+my_corpus = tm_map(my_corpus, content_transformer(removeNumbers)) # remove numbers
+my_corpus = tm_map(my_corpus, content_transformer(removePunctuation)) # remove punctuation
+my_corpus = tm_map(my_corpus, content_transformer(stripWhitespace)) ## remove excess white-space
+my_corpus = tm_map(my_corpus, content_transformer(removeWords), stopwords("SMART"))
+
+DTM = DocumentTermMatrix(my_corpus)
+DTM = removeSparseTerms(DTM, 0.975)
+
+# Now a dense matrix
+X = as.matrix(DTM)
+#process test data
+source('C:/Users/hilla/Desktop/R Dir/Stats part 2/textutils.R')
+
+readerPlain = function(fname){
+				readPlain(elem=list(content=readLines(fname)), 
+							id=fname, language='en') }
+
+author_dirs2 = Sys.glob('C:/Users/hilla/Desktop/R Dir/Stats part 2/ReutersC50/C50test/*')
+#author_dirs = author_dirs[1:2]
+file_list2 = NULL
+labels2 = NULL
+for(author in author_dirs2) {
+	author_name2 = substring(author, first=29)
+	files_to_add2 = Sys.glob(paste0(author, '/*.txt'))
+	file_list2 = append(file_list, files_to_add)
+	labels2 = append(labels2, rep(author_name2, length(files_to_add2)))
+}
+
+# Need a more clever regex to get better names here
+all_docs2 = lapply(file_list2, readerPlain) 
+names(all_docs2) = file_list2
+names(all_docs2) = sub('.txt', '', names(all_docs2))
+
+my_corpus2 = Corpus(VectorSource(all_docs2))
+names(my_corpus2) = file_list2
+
+# Preprocessing
+my_corpus2 = tm_map(my_corpus2, content_transformer(tolower)) # make everything lowercase
+my_corpus2 = tm_map(my_corpus2, content_transformer(removeNumbers)) # remove numbers
+my_corpus2 = tm_map(my_corpus2, content_transformer(removePunctuation)) # remove punctuation
+my_corpus2 = tm_map(my_corpus2, content_transformer(stripWhitespace)) ## remove excess white-space
+my_corpus2 = tm_map(my_corpus2, content_transformer(removeWords), stopwords("SMART"))
+
+DTM2 = DocumentTermMatrix(my_corpus2)
+DTM2 = removeSparseTerms(DTM2, 0.975)
+
+# Now a dense matrix
+X2 = as.matrix(DTM2)
+
+# list of words
+names1 = colnames(X)
+names2 = colnames(X2)
+
+# ignore values not in training set
+wordsinboth = which((names2 %in% names1))
+missing_words = which(!(names2 %in% names1))
+
+# apply to lists
+names2[wordsinboth]
+names2[missing_words]
+
+# add values from training not in test set
+wordsinboth = which((names2 %in% names1))
+missing_words2 = which(!(names1 %in% names2))
+
+# apply to lists
+dropcol = names2[missing_words]
+addcol = names1[missing_words2]
+
+#make dataframe
+trainset = as.data.frame(X)
+testset = as.data.frame(X2)
+# add columns 
+trainset["Author"] <- as.factor(rownames(trainset))
+testset[,addcol] <- NA
+testset2 = testset[,!(names(testset) %in% dropcol)]
+authorsnames = rownames(testset2)
+testset2["Author"] <- factor(authorsnames)
+#make dataframe
+trainset2 = as.data.frame(trainset)
+testset3 = as.data.frame(testset2)
+
+#logistic regression model
+model <- glm(Author ~ ., data = trainset2, family = binomial)
+summary(model)
+predict <- predict(model, data = testset3, type = 'response')
+#confusion matrix
+#tablecm = table(trainset2$Author, predict > 0.1)
+
+library(caret)
+authornamesactual = unique(testset3$Author)
+accuracy <- table(predict, authornamesactual)
+sum(diag(accuracy))/sum(accuracy)
+## [1] 8e-04
+#confusionMatrix(data=predict, authornamesactual)
+```
+
+A Logistic Regression model was applied to the training dataset, with Author as the response variable. Based on the results, using Logistic Regression to predict the Authors in the test set is not reccommended. An acurracy of only **0.0008** was produced. Therefore, Logistic Regression is not a good method for text classificitation for this data set.  
+
+
+```{r echo=FALSE, warning=FALSE, message=FALSE, eval=FALSE}
+#Naive Bayes
+#train
+smooth_count = 1/nrow(trainset2)
+num = 1
+sum = 0
+sum2 = 0
+for (i in 1:50){
+  nam = paste('tr',i, sep='')
+  sum = colSums(assign(nam, trainset2[(num):(num+49),]))+smooth_count
+  sum2 = sum(sum)
+  nam3 = paste('w', i, sep="")
+  assign(nam3, sum/sum2)
+  num=num+50
+}
+
+#test
+num = 1
+sum = 0
+sum2 = 0
+for (i in 1:50){
+  nam = paste('te',i, sep='')
+  assign(nam, colSums(testset3[(num):(num+49),]))
+  num=num+50
+}
+
+#log probabilities
+w_table = rbind.data.frame(w1, w2, w3, w4, w5, w6, w7, w8, w9, w10, w11, w12, w13, w15, w15, w16, w17, w18, w19, w20, w21, w22, w23, w24, w25, w26, w27, w28, w29, w30, w31, w32, w33, w34, w35, w36, w37, w38, w39, w40, w41, w42, w43, w44, w45, w46, w47, w48, w49, w50)
+w_table = as.matrix(w_table)
+
+te_table = rbind.data.frame(te1, te2, te3, te4, te5, te6, te7, te8, te9, te10, te11, te12, te13, te15, te15, te16, te17, te18, te19, te20, te21, te22, te23, te24, te25, te26, te27, te28, te29, te30, te31, te32, te33, te34, te35, te36, te37, te38, te39, te40, te41, te42, te43, te44, te45, te46, te47, te48, te49, te50)
+te_table = as.matrix(te_table)
+te_table[is.na(te_table)] = 0
+
+#columns are training, rows are test
+log_w = log(w_table)
+log_table = (te_table) %*% t(log_w)
+#log_table
+#dim(log_table)
+#dim(log_w)
+#dim(te_table)
+
+# Used to get the predictions - colnames(log_table)[apply(log_table,1,which.max)]
+```
+
+**Only 10 Correct Predictions using Naive Baye's** Because only 10 out of 50 authors were predicted correctly, Naive Baye's is not a successful method. The most common predictions were Eric Auchard and Sarah Davidson. 
+
+Training Column/Author | Predicted Column/Author | Correct?
+-----------------------|-------------------------|----------
+1                      | 43                      | No
+2                      | 43                      | No
+3                      | 3                       | Yes
+4                      | 14                      | No
+5                      | 25                      | No
+6                      | 10                      | No
+7                      | 25                      | No
+8                      | 50                      | No
+9                      | 42                      | No
+10                     | 10                      | Yes
+11                     | 43                      | No
+12                     | 50                      | No
+13                     | 42                      | No
+14                     | 14                      | Yes
+15                     | 14                      | No
+16                     | 16                      | Yes
+17                     | 25                      | No
+18                     | 25                      | No
+19                     | 43                      | No
+20                     | 25                      | No
+21                     | 43                      | No
+22                     | 25                      | No
+23                     | 23                      | Yes
+24                     | 25                      | No
+25                     | 25                      | Yes
+26                     | 10                      | No
+27                     | 10                      | No
+28                     | 43                      | No
+29                     | 43                      | No
+30                     | 23                      | No
+31                     | 25                      | No
+32                     | 32                      | Yes
+33                     | 43                      | No
+34                     | 43                      | No
+35                     | 14                      | No
+36                     | 42                      | No
+37                     | 10                      | No
+38                     | 35                      | No
+39                     | 32                      | No
+40                     | 42                      | No
+41                     | 42                      | No
+42                     | 42                      | Yes
+43                     | 43                      | Yes
+44                     | 43                      | No
+45                     | 25                      | No
+46                     | 35                      | No
+47                     | 10                      | No
+48                     | 25                      | No
+49                     | 23                      | No
+50                     | 50                      | Yes
+
+**Key:** 1 - Aaron Pressman, 2 - Alan Crosby, 3 - Alexander Smith, 4 - Benjamin Kang Lim, 5 - Bernard Hickey, 6 - Brad Dorfman, 7 - Darren Schuettler, 8 - David Lawder, 9 - Edna Fernandes, 10 - Eric Auchard, 11 - Fumiko Fujisaki, 12 - Graham Earnshaw, 13 - Heather Scoffield, 14 - Jane Macartney, 15 - Jan Lopatka, 16 - Jim Gilchrist, 17 - Joe Ortiz, 18 - John Mastrini, 19 - Jonathan Birt, 20 - Jo Winterbottom, 21 - Karl Penhaul, 22 - Keith Weir, 23 - Kevin Drawbaugh, 24 - Kevin Morrison, 25 - Kristin Ridley, 26 - Kourosh Karimkhany, 27 - Lydia Zajc, 28 - Lynne O'Donnell, 29 - Lynnley Browning, 30 - Marcell Michelson, 31 - Mark Bendeich, 32 - Martin Wolk, 33 - Matthew Bunce, 34 - Michael Connor, 35 - Mure Dickie, 36 - Nick Louth, 37 - Patricia Commins, 38 - Peter Humphrey, 39 - Pierre Tran, 40 - Robin Sidel, 41 - Roger Fillion, 42 - Samuel Perry, 43 - Sarah Davidson, 44 - Scott Hillis, 45 - Simon Cowell, 46 - Tan Ee Lyn, 47 - Therese Poletti, 48 - Tim Farrand, 49 - Todd Nissen, 50 - William Kazer
+
+
+#### Conclusion:
+The Naive Bayes is preferred over Logistic Regression. The Naive Bayes model predicted the author to be Sarah Davidson 10 times incorrectly, suggesting she has a writing style similar to 10 other authors. 
+
+<br>
+<br>
+<br>
+<br>
+
+# Practice with Association Rule Mining
+## Assignment:
+
+Find some interesting association rules for a list of shopping baskets.
+
+## Solution:
+
+Once the data set was in the format expected by the arules package, association rule mining was conducted.  
+
+Various threshold levels were tested to see what combination gave the most meaningful results. The maximum number of items was set to 3. Increasing this value above 3 did not change the results significantly holding the other threshold levels constant. Additionally, the confidence threshold was set to 0.5. Setting this value any lower than 50% doesn't provide a trustworthy prediction because you don't have majority confidence in the results. Setting the confidence higher than 50% didn't produce any results, forcing this threshold to remain at 50%. Similarly, the support level was tested at high and low values. Higher values (0.01) produced very few to no results, while low values (0.001) produced far too many results to be meaningful. The support threshold was decided as 0.005.  
+
+The final mining resulted in 99 rules. Looking at rules with high lift (or higher odds of containing this subset of items), it can be seen that purchasing fruits and vegetables is likely to result in purchasing the set of items labeled "other vegetables". Additionally, yogurt is 3.69 times more likely to be purchased if fruit and curd is in the shopping basket. 
+<br>
+```{r echo=FALSE}
+#determine number of columns for initial df
+no_col = max(count.fields("C:/Users/hilla/Desktop/R Dir/Stats part 2/groceries.txt", sep=","))
+#import text file to df
+grocery_data = read.table("C:/Users/hilla/Desktop/R Dir/Stats part 2/groceries.txt", sep=",", fill=TRUE, header=FALSE, col.names=1:no_col, as.is=TRUE)
+
+#create each item in a basket to it's own row, organized by ID
+#commenting out lines the following 10 lines to make the knit run faster, uncomment to run code
+grocery_df = data.frame(id=NA, item=NA, stringsAsFactors = FALSE)
+
+for(i in 1:nrow(grocery_data)){
+  for(j in 1:ncol(grocery_data)){
+    if(grocery_data[i,j]!=""){
+      new_item = grocery_data[i,j]
+      new_row = c(id=i, item=new_item) 
+      grocery_df = rbind(grocery_df, new_row)
+    }
+  }
+}
+
+#remove first "blank" row of data
+grocery_df = grocery_df[-1,]
+```
+
+```{r echo=FALSE, results="hide"}
+#run association rule mining
+#turn user into a factor
+grocery_df$id = factor(grocery_df$id)
+
+#create list of baskets
+groceries <- split(x=grocery_df$item, f=grocery_df$id)
+
+## Remove duplicates ("de-dupe")
+groceries <- lapply(groceries, unique)
+
+## Cast this variable as a special arules "transactions" class.
+groctrans <- as(groceries, "transactions")
+
+# Run the 'apriori' algorithm
+grocery_mining <- apriori(groctrans,parameter=list(support=.005, confidence=.5, maxlen=3))
+```
+
+```{r echo=FALSE, warning=FALSE}
+arules::inspect(subset(grocery_mining, subset=lift > 3))
+```
+
+
+There is only one "rule" with confidence higher than 60%  and support just 0.01. This rule states that you are 2.5 times more likely to purchase whole milk if you have butter and yogurt in your shopping basket. 
+```{r echo=FALSE, warning=FALSE}
+arules::inspect(subset(grocery_mining, subset=support > .009 & confidence > 0.6))
+```
+<br>
+<br>
+<br>
+<br>
+```{r echo=FALSE}
+subrules2 = head(sort(grocery_mining, by="lift"), 30);
+plot(subrules2, method="graph", control=list(type="items"), main="Important Relationships");
+```
+<br>
+Viewing the plot above, it can be noted that other vegetables and root vegetables provide the highest support levels for the various basket items. Additionally, larger circles represent higher support. 
+<br>
+<br>
+<br>
+<br>
+```{r echo=FALSE}
+plot(subrules2, method="paracoord", control=list(reorder=TRUE), main="Important Relationships");
+```
+<br>
+The plot above shows combination of basket items that predict more common resulting items. Most of the lines converge to other vegetables, fruit/vegetable juice, and onions. 
+<br>
+<br>
+<br>
+<br>
+```{r echo=FALSE}
+subrules3 = head(sort(grocery_mining, by="lift"), 90)
+plot(subrules3, main="Comparing Support and Confidence")
+```
+<br>
+**Conclusion:** Comparing support against confidence, there are few rules that have support higher than 0.01. Additionally, most have confidence below 60%. This tells us that our mining rules might not be the most reliable and that we might not be able to make meaningful conclusions about shopping patterns. 
